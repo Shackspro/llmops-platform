@@ -1,6 +1,21 @@
-def main():
-    print("Hello from my LLMOps platform!")
+from fastapi import FastAPI
+
+app = FastAPI(
+    title="LLMOps Platform API",
+    description="A local-first LLMOps learning project.",
+    version="0.1.0",
+)
 
 
-if __name__ == "__main__":
-    main()
+@app.get("/")
+def read_root():
+    return {
+        "message": "LLMOps Platform API is running"
+    }
+
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy"
+    }
