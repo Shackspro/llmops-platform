@@ -6,9 +6,15 @@ services:
     ports:
       - "8000:8000"
     environment:
-      OLLAMA_URL: http://host.docker.internal:11434/api/generate
-      REDIS_HOST: redis
+      OLLAMA_URL: "http://host.docker.internal:11434/api/generate"
+      OLLAMA_TAGS_URL: "http://host.docker.internal:11434/api/tags"
+      REDIS_HOST: "redis"
       REDIS_PORT: "6379"
+      MODEL_NAME: "llama3.2:1b"
+      CACHE_TTL_SECONDS: "3600"
+      REQUEST_TIMEOUT_SECONDS: "120"
+      RATE_LIMIT_REQUESTS: "10"
+      RATE_LIMIT_WINDOW_SECONDS: "60"
     depends_on:
       redis:
         condition: service_healthy
@@ -20,7 +26,7 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes
+    command: ["redis-server", "--appendonly", "yes"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
