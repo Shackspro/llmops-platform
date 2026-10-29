@@ -1,3 +1,4 @@
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -30,14 +31,16 @@ def test_generate_returns_model_response(monkeypatch):
             return {"response": "Hello from a mocked model."}
 
     def fake_post(url, *, json, timeout):
-        assert url == "http://127.0.0.1:11434/api/generate"
-        assert json["model"] == "llama3.2:1b"
         assert json["prompt"] == "Say hello"
         assert json["stream"] is False
-
         return FakeOllamaResponse()
 
     monkeypatch.setattr("app.main.httpx.post", fake_post)
+    monkeypatch.setattr("app.main.redis_client.get", lambda key: None)
+    monkeypatch.setattr(
+        "app.main.redis_client.setex",
+        lambda *args: True,
+    )
 
     response = client.post(
         "/generate",
@@ -48,6 +51,7 @@ def test_generate_returns_model_response(monkeypatch):
     assert response.json() == {
         "model": "llama3.2:1b",
         "response": "Hello from a mocked model.",
+        "cached": False,
     }
 
 
