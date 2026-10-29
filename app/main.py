@@ -8,7 +8,7 @@ app = FastAPI(
     version="0.2.0",
 )
 
-OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
+OLLAMA_URL = "http://host.docker.internal:11434/api/generate"
 MODEL_NAME = "llama3.2:1b"
 
 
