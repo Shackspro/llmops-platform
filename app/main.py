@@ -12,11 +12,31 @@ from pydantic import BaseModel, Field
 
 from app.config import settings
 
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    Counter,
+    Histogram,
+    generate_latest,
+)
+from fastapi.responses import Response
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("llmops.api")
+
+REQUEST_COUNT = Counter(
+    "llmops_http_requests_total",
+    "Total number of HTTP requests",
+    ["method", "endpoint", "status_code"],
+)
+
+REQUEST_DURATION = Histogram(
+    "llmops_http_request_duration_seconds",
+    "HTTP request duration in seconds",
+    ["method", "endpoint"],
+)
 
 app = FastAPI(
     title="LLMOps Platform API",
@@ -71,10 +91,12 @@ def enforce_rate_limit(request: Request):
         )
 
 
+
 @app.middleware("http")
 async def request_logging(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     request.state.request_id = request_id
+
     started = time.perf_counter()
     status_code = 500
 
@@ -83,8 +105,26 @@ async def request_logging(request: Request, call_next):
         status_code = response.status_code
         response.headers["X-Request-ID"] = request_id
         return response
+
     finally:
-        duration_ms = (time.perf_counter() - started) * 1000
+        duration_seconds = time.perf_counter() - started
+
+        # Use the registered route template to avoid
+        # creating a separate metric for every arbitrary URL.
+        route = request.scope.get("route")
+        endpoint = getattr(route, "path", "unmatched")
+
+        REQUEST_COUNT.labels(
+            method=request.method,
+            endpoint=endpoint,
+            status_code=str(status_code),
+        ).inc()
+
+        REQUEST_DURATION.labels(
+            method=request.method,
+            endpoint=endpoint,
+        ).observe(duration_seconds)
+
         logger.info(
             "request_completed request_id=%s method=%s path=%s "
             "status_code=%s duration_ms=%.2f",
@@ -92,8 +132,9 @@ async def request_logging(request: Request, call_next):
             request.method,
             request.url.path,
             status_code,
-            duration_ms,
+            duration_seconds * 1000,
         )
+
 
 
 @app.get("/")
@@ -148,6 +189,13 @@ def readiness_check():
         "ollama": ollama_status,
         "redis": redis_status,
     }
+
+@app.get("/metrics", include_in_schema=False)
+def metrics():
+    return Response(
+        content=generate_latest(),
+        headers={"Content-Type": CONTENT_TYPE_LATEST},
+    )
 
 
 @app.post("/generate")

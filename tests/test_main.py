@@ -128,3 +128,12 @@ def test_generate_returns_429_when_rate_limit_is_exceeded(monkeypatch):
     )
     assert response.headers["Retry-After"] == "60"
 
+def test_metrics_endpoint():
+    # Generate a request so that the metrics are populated.
+    client.get("/health/live")
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert "llmops_http_requests_total" in response.text
+    assert "llmops_http_request_duration_seconds" in response.text

@@ -2,3 +2,5 @@
 httpx
 pytest
 redis
+pydantic-settings
+prometheus-client
