@@ -8,8 +8,8 @@ on:
     branches: [main, master]
 
 jobs:
-  test:
-    name: Run Python Tests
+  quality-and-security:
+    name: Code Quality, Security and Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -25,7 +25,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install ruff pip-audit
+
+      - name: Check code quality
+        run: ruff check .
+
+      - name: Check formatting
+        run: ruff format --check .
+
+      - name: Audit dependencies
+        run: python -m pip_audit -r requirements.txt
 
       - name: Run tests
-        run: |
-          python -m pytest -v
+        run: python -m pytest -v
