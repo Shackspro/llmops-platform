@@ -1,4 +1,3 @@
-
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -10,9 +9,7 @@ def test_root_returns_welcome_message():
     response = client.get("/")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "message": "LLMOps Platform API is running"
-    }
+    assert response.json() == {"message": "LLMOps Platform API is running"}
 
 
 def test_health_returns_healthy_status():
@@ -123,10 +120,9 @@ def test_generate_returns_429_when_rate_limit_is_exceeded(monkeypatch):
     )
 
     assert response.status_code == 429
-    assert response.json()["detail"] == (
-        "Rate limit exceeded. Please try again later."
-    )
+    assert response.json()["detail"] == ("Rate limit exceeded. Please try again later.")
     assert response.headers["Retry-After"] == "60"
+
 
 def test_metrics_endpoint():
     # Generate a request so that the metrics are populated.

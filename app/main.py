@@ -1,4 +1,3 @@
-
 import hashlib
 import json
 import logging
@@ -8,17 +7,24 @@ import uuid
 import httpx
 import redis
 from fastapi import Depends, FastAPI, HTTPException, Request
-from pydantic import BaseModel, Field
-
-from app.config import settings
-
+from fastapi.responses import Response
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.instrumentation.redis import RedisInstrumentor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     Counter,
     Histogram,
     generate_latest,
 )
-from fastapi.responses import Response
+from pydantic import BaseModel, Field
+
+from app.config import settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,11 +44,32 @@ REQUEST_DURATION = Histogram(
     ["method", "endpoint"],
 )
 
+resource = Resource.create({"service.name": settings.otel_service_name})
+
+if settings.otel_enabled:
+    resource = Resource.create({"service.name": settings.otel_service_name})
+
+    tracer_provider = TracerProvider(resource=resource)
+
+    otlp_exporter = OTLPSpanExporter(
+        endpoint=settings.otel_exporter_otlp_endpoint,
+        insecure=True,
+    )
+
+    tracer_provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+
+    trace.set_tracer_provider(tracer_provider)
+
 app = FastAPI(
     title="LLMOps Platform API",
     description="A local-first LLMOps learning project.",
     version="0.4.0",
 )
+
+if settings.otel_enabled:
+    FastAPIInstrumentor.instrument_app(app)
+    HTTPXClientInstrumentor().instrument()
+    RedisInstrumentor().instrument()
 
 redis_client = redis.Redis(
     host=settings.redis_host,
@@ -85,11 +112,8 @@ def enforce_rate_limit(request: Request):
         raise HTTPException(
             status_code=429,
             detail="Rate limit exceeded. Please try again later.",
-            headers={
-                "Retry-After": str(settings.rate_limit_window_seconds)
-            },
+            headers={"Retry-After": str(settings.rate_limit_window_seconds)},
         )
-
 
 
 @app.middleware("http")
@@ -134,7 +158,6 @@ async def request_logging(request: Request, call_next):
             status_code,
             duration_seconds * 1000,
         )
-
 
 
 @app.get("/")
@@ -190,6 +213,7 @@ def readiness_check():
         "redis": redis_status,
     }
 
+
 @app.get("/metrics", include_in_schema=False)
 def metrics():
     return Response(
@@ -200,12 +224,13 @@ def metrics():
 
 @app.post("/generate")
 def generate_text(
-        request: GenerateRequest,
-        _: None = Depends(enforce_rate_limit),
+    request: GenerateRequest,
+    _: None = Depends(enforce_rate_limit),
 ):
-    cache_key = "llm:" + hashlib.sha256(
-        f"{settings.model_name}:{request.prompt}".encode("utf-8")
-    ).hexdigest()
+    cache_key = (
+        "llm:"
+        + hashlib.sha256(f"{settings.model_name}:{request.prompt}".encode()).hexdigest()
+    )
 
     try:
         cached = redis_client.get(cache_key)

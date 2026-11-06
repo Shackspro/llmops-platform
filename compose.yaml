@@ -15,6 +15,9 @@ services:
       REQUEST_TIMEOUT_SECONDS: "120"
       RATE_LIMIT_REQUESTS: "10"
       RATE_LIMIT_WINDOW_SECONDS: "60"
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: "llmops-api"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
     depends_on:
       redis:
         condition: service_healthy
@@ -48,6 +51,29 @@ services:
       - api
     restart: unless-stopped
 
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: "local-dev-password"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "127.0.0.1:16686:16686"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    restart: unless-stopped
+
 volumes:
   redis-data:
   prometheus-data:
+  grafana-data:

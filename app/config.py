@@ -1,6 +1,3 @@
-
-import os
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +11,9 @@ class Settings(BaseSettings):
     request_timeout_seconds: float = 120.0
     rate_limit_requests: int = 10
     rate_limit_window_seconds: int = 60
+    otel_service_name: str = "llmops-api"
+    otel_exporter_otlp_endpoint: str = "http://localhost:4317"
+    otel_enabled: bool = False
 
     model_config = SettingsConfigDict(
         env_prefix="",
