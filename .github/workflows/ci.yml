@@ -38,3 +38,19 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -v
+
+
+  secret-scan:
+    name: Secret Scanning with Gitleaks
+    runs-on: ubuntu-latest
+
+    steps:
+       - name: Checkout full repository history
+         uses: actions/checkout@v6
+         with:
+           fetch-depth: 0
+
+       - name: Scan repository for secrets
+         uses: gitleaks/gitleaks-action@v3
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
