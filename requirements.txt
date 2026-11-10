@@ -10,3 +10,6 @@ opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-instrumentation-fastapi
 opentelemetry-instrumentation-httpx
 opentelemetry-instrumentation-redis
+msgpack>=1.2.3
+setuptools>=84.1.0
+urllib3>=2.8.0
