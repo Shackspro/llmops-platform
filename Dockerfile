@@ -16,7 +16,8 @@ RUN apt-get update \
 COPY requirements.txt .
 
 RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir --upgrade -r requirements.txt
+    && python -m pip install --no-cache-dir --upgrade -r requirements.txt \
+    && python -m pip install --no-cache-dir --upgrade "setuptools>=78.1.1"
 
 # Copy application
 COPY app ./app
