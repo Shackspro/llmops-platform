@@ -67,6 +67,13 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t llmops-platform:${{ github.sha }} .
+          
+
+      - name: Verify Python package versions
+        run: |
+          docker run --rm llmops-platform:${{ github.sha }} python -c "import importlib.metadata as m; print('Setuptools:', m.version('setuptools')); print('Location:', m.distribution('setuptools')._path)"
+          docker run --rm llmops-platform:${{ github.sha }} sh -c "find /usr/local /usr/lib -type d -name 'setuptools-*.dist-info' 2>/dev/null"
+
 
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
